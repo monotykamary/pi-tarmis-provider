@@ -1,6 +1,6 @@
 {
   "name": "pi-tarmis-provider",
-  "version": "1.1.5",
+  "version": "1.1.6",
   "description": "Tarmis provider extension for pi - Open models on Tarmis's own GPUs via an OpenAI-compatible API",
   "type": "module",
   "main": "index.ts",
@@ -53,7 +53,7 @@
     ]
   },
   "devDependencies": {
-    "@earendil-works/pi-coding-agent": "^0.85.0",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@types/node": "^25.9.1",
     "typescript": "^6.0.3"
   }
