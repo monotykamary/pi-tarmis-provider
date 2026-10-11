@@ -19,6 +19,7 @@ When a model needs overrides, new properties, or corrections, edit the appropria
 | `patch.json` | Per-model overrides keyed by model ID. Add reasoning flags, compat settings, pricing corrections, thinking level maps, etc. Applied on top of `models.json` at runtime and for README generation. |
 | `custom-models.json` | Models that don't exist in the provider API (hidden models, router endpoints, cross-provider aliases). Merged after patch. Format: array of full model objects (same schema as `models.json` entries). |
 | `index.ts` | Provider extension code. |
+| `sync-policy.ts` | Quiet startup sync policy (TTL, key fingerprint, cross-process lock). Provider-agnostic and shared verbatim across pi-*-provider repos — keep it free of provider specifics. |
 | `scripts/update-models.js` | The sync script itself (edit only if changing how models are fetched/transformed). |
 
 ## How Tarmis differs from other providers
@@ -33,7 +34,7 @@ Tarmis's `/v1/models` endpoint returns **rich metadata** (name, per-token pricin
 
 The API reports *which* models support reasoning, but not the wire format each model expects. Reasoning models are given standard OpenAI-compatible defaults (`thinkingFormat: "openai"`, `supportsReasoningEffort: true`, `supportsDeveloperRole: false`). `patch.json` is where you override that for any model that needs a different format (e.g. a DeepSeek-native `thinking` field).
 
-Additionally, `/v1/models` is **public** (no auth), so the catalogue syncs even before a key is configured.
+Additionally, `/v1/models` is **public** (no auth), so `scripts/update-models.js` needs no key. The extension's background sync is nevertheless gated on a configured key (quiet startup sync: no key, no request — see `sync-policy.ts`).
 
 ## Data Flow
 

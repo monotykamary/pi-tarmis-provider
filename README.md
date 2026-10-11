@@ -18,7 +18,7 @@ _One OpenAI-compatible API to open models on Tarmis's own GPUs — DeepSeek, GLM
 
 - **OpenAI-compatible API** — Uses Tarmis's `/v1/chat/completions` endpoint
 - **Rich auto-synced catalogue** — The Tarmis `/v1/models` endpoint returns per-model pricing, context windows, max output, modalities, and supported features; `models.json` is generated directly from it
-- **Public model list** — `/v1/models` is unauthenticated, so pi lists Tarmis models (and the background model sync runs) even before you set a key
+- **Quiet live model sync** — Models refresh from the Tarmis API in the background, at most hourly, by one pi process at a time, and only once a key is configured ([details](#model-sync))
 - **Reasoning models** — Thinking models are detected from the API's `supported_features` and configured for `reasoning_effort` control
 - **Vision models** — Image input is auto-detected from `input_modalities`
 - **Tool use** — Function calling for models that advertise `tools` support
@@ -100,13 +100,14 @@ The Tarmis API key can be configured in multiple ways (resolved in this order):
 
 Get your API key from [tarmis.ai](https://tarmis.ai).
 
-> **Note:** A key is only required to actually call a model. The model catalogue (`/v1/models`) is public, so pi displays available Tarmis models and keeps them synced even before a key is configured.
+> **Note:** Without a key pi still lists the bundled/cached Tarmis models; the background catalogue sync starts once a key is configured (see [Model sync](#model-sync)). A key is required to actually call a model.
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `TARMIS_API_KEY` | No | Your Tarmis API key (fallback if not in auth.json; only needed to call a model) |
+| `TARMIS_API_KEY` | No | Your Tarmis API key (fallback if not in auth.json; needed to call a model and to enable the background model sync) |
+| `PI_PROVIDER_SYNC_TTL_MS` | No | Model sync freshness window in ms (default `3600000`; `0` = revalidate every session start) |
 
 ## Configuration
 
@@ -162,6 +163,20 @@ Tarmis provides an OpenAI-compatible API. Key notes:
 - OpenAI-compatible endpoint: `https://api.tarmis.ai/v1`
 - Models endpoint (public): `https://api.tarmis.ai/v1/models`
 - Pricing: https://docs.tarmis.ai/docs/pricing
+
+## Model sync
+
+Startup never waits on the network. pi starts with the cached catalog (`~/.pi/agent/cache/tarmis-models.json`,
+falling back to the bundled `models.json`) and revalidates against `/v1/models` in the background — only when:
+
+- a Tarmis API key is configured (no key, no request — even though `/v1/models` itself is public),
+- the cache is older than 1 hour, missing, or was fetched with a different API key, and
+- no other pi process is already refreshing it (a `tarmis-models.lock` file next to the cache).
+
+So `/new`, `/reload`, `pi -p` and fan-out child agents share one cache instead of each calling the API; a
+session that skips the fetch still picks up a cache another process refreshed. A failed refresh is retried after
+5 minutes at the earliest. `PI_PROVIDER_SYNC_TTL_MS` changes the window (`0` revalidates on every session start).
+Only a hash fingerprint of the key is stored (`tarmis-models.sync.json`), never the key itself.
 
 ## Updating Models
 
